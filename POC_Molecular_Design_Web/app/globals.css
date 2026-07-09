@@ -1,0 +1,73 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --font-exo: "Exo", system-ui, sans-serif;
+  --font-mono: "Roboto Mono", monospace;
+}
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    @apply bg-base-950 text-slate-200 antialiased;
+    background-image:
+      radial-gradient(ellipse 80% 50% at 50% -10%, rgba(34, 211, 238, 0.12), transparent),
+      radial-gradient(ellipse 60% 50% at 90% 20%, rgba(167, 139, 250, 0.1), transparent),
+      radial-gradient(ellipse 60% 50% at 10% 40%, rgba(52, 211, 153, 0.08), transparent);
+    background-attachment: fixed;
+  }
+
+  ::selection {
+    @apply bg-cyan-glow/30 text-white;
+  }
+}
+
+@layer components {
+  .glass {
+    @apply border border-white/10 bg-white/[0.04] backdrop-blur-xl;
+  }
+
+  .glass-strong {
+    @apply border border-white/15 bg-white/[0.06] backdrop-blur-2xl;
+  }
+
+  .text-gradient {
+    @apply bg-gradient-to-r from-cyan-glow via-emerald-glow to-violet-glow bg-clip-text text-transparent;
+  }
+
+  .glow-ring {
+    box-shadow:
+      0 0 0 1px rgba(34, 211, 238, 0.2),
+      0 0 40px -10px rgba(34, 211, 238, 0.5);
+  }
+}
+
+/* Barre de defilement discrete cote labo */
+::-webkit-scrollbar {
+  width: 10px;
+}
+::-webkit-scrollbar-track {
+  background: #05060d;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(34, 211, 238, 0.25);
+  border-radius: 6px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(34, 211, 238, 0.4);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
