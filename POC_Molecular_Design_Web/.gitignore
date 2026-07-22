@@ -1,0 +1,15 @@
+# Dependances
+/node_modules
+
+# Build Next.js
+/.next
+/out
+
+# Build Rust (lourd, jamais commite ; le wasm compile est dans public/)
+/rust/target
+
+# Divers
+.DS_Store
+*.log
+.env*.local
+.vercel
