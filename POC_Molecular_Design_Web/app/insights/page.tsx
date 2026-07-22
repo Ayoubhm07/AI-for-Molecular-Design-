@@ -14,6 +14,8 @@ import {
   CLIFFS,
   STATS_GLOBALES,
 } from "@/lib/insights";
+import { RustEngineSection } from "@/components/sections/RustEngineSection";
+import { BenchmarkCard } from "@/components/BenchmarkCard";
 
 export default function InsightsPage() {
   return (
@@ -219,6 +221,16 @@ export default function InsightsPage() {
           ))}
         </div>
       </GlassCard>
+
+      {/* Moteur Rust WebAssembly */}
+      <div className="mt-16">
+        <RustEngineSection />
+      </div>
+
+      {/* Benchmark en direct */}
+      <div className="mt-6">
+        <BenchmarkCard />
+      </div>
     </div>
   );
 }

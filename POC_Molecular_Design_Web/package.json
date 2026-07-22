@@ -6,7 +6,10 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "build:wasm": "node scripts/build-wasm.mjs",
+    "build:dataset": "node scripts/build-dataset.mjs",
+    "verify:wasm": "node scripts/verify_wasm.mjs"
   },
   "dependencies": {
     "@react-three/drei": "^9.108.3",

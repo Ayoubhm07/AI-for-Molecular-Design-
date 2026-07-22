@@ -1,12 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import { motion, AnimatePresence } from "framer-motion";
-import { FlaskConical, Loader2, CheckCircle2, XCircle } from "lucide-react";
+import { FlaskConical, Loader2, CheckCircle2, XCircle, Cpu } from "lucide-react";
 import { Button } from "@/components/ui/Button";
-import { EXEMPLES_SMILES } from "@/lib/data";
+import { EXEMPLES_SMILES, CATALOGUE } from "@/lib/data";
 import type { Prediction } from "@/lib/chemistry";
+import { initMolcore, type MolcoreApi } from "@/lib/wasm/molcore";
 
 // Le dessin 2D s'appuie sur le canvas du navigateur, on le charge cote client.
 const MoleculeDrawing = dynamic(
@@ -22,12 +23,37 @@ interface Analogue {
   similarite: number;
 }
 
+type Moteur = "rust" | "js" | null;
+
 export default function DemoPage() {
   const [smiles, setSmiles] = useState("");
   const [chargement, setChargement] = useState(false);
   const [prediction, setPrediction] = useState<Prediction | null>(null);
   const [analogues, setAnalogues] = useState<Analogue[]>([]);
   const [erreur, setErreur] = useState("");
+  const [moteur, setMoteur] = useState<Moteur>(null);
+
+  // Cache des empreintes du catalogue, calcule une seule fois via le wasm.
+  const empreintesCatalogue = useRef<Map<string, Uint8Array> | null>(null);
+
+  function analoguesViaWasm(api: MolcoreApi, requete: string): Analogue[] {
+    if (!empreintesCatalogue.current) {
+      const cache = new Map<string, Uint8Array>();
+      for (const mol of CATALOGUE) {
+        cache.set(mol.smiles, api.computeFingerprint(mol.smiles));
+      }
+      empreintesCatalogue.current = cache;
+    }
+    const cible = api.computeFingerprint(requete);
+    return CATALOGUE.map((mol) => {
+      const fp = empreintesCatalogue.current!.get(mol.smiles)!;
+      const similarite = api.computeTanimoto(cible, fp);
+      return { ...mol, similarite: Math.round(similarite * 100) / 100 };
+    })
+      .filter((a) => a.similarite < 0.999)
+      .sort((a, b) => b.similarite - a.similarite)
+      .slice(0, 5);
+  }
 
   async function analyser(valeur?: string) {
     const requete = (valeur ?? smiles).trim();
@@ -38,24 +64,41 @@ export default function DemoPage() {
     setAnalogues([]);
 
     try {
-      const [resPred, resAna] = await Promise.all([
-        fetch("/api/predict", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ smiles: requete }),
-        }),
-        fetch(`/api/analogues?smiles=${encodeURIComponent(requete)}`),
-      ]);
-
+      // Le verdict activite et pIC50 reste servi par l'API (le modele).
+      const resPred = await fetch("/api/predict", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ smiles: requete }),
+      });
       const pred: Prediction = await resPred.json();
-      const ana = await resAna.json();
 
       if (!pred.valide) {
         setErreur("Ce SMILES ne semble pas valide. Verifiez la syntaxe.");
+        return;
+      }
+
+      // On tente le moteur Rust/WebAssembly pour les descripteurs et les analogues.
+      const api = await initMolcore();
+
+      if (api) {
+        setMoteur("rust");
+        try {
+          pred.proprietes = api.computeDescriptors(requete);
+        } catch {
+          // on garde les proprietes de l'API si le calcul wasm echoue
+        }
+        setAnalogues(analoguesViaWasm(api, requete));
       } else {
-        setPrediction(pred);
+        // Repli JavaScript : proprietes de l'API et analogues via l'endpoint.
+        setMoteur("js");
+        const resAna = await fetch(
+          `/api/analogues?smiles=${encodeURIComponent(requete)}`
+        );
+        const ana = await resAna.json();
         setAnalogues(ana.analogues ?? []);
       }
+
+      setPrediction(pred);
     } catch {
       setErreur("Une erreur est survenue pendant l'analyse.");
     } finally {
@@ -73,7 +116,8 @@ export default function DemoPage() {
         <p className="mt-4 max-w-2xl text-base leading-relaxed text-slate-400">
           Collez le code SMILES d'une molecule ou choisissez un exemple. Le
           modele predit son activite sur l'EGFR, sa puissance estimee et ses
-          analogues connus.
+          analogues connus. Les proprietes et la similarite sont calculees par
+          un moteur Rust compile en WebAssembly.
         </p>
       </div>
 
@@ -191,7 +235,10 @@ export default function DemoPage() {
 
             {/* Proprietes */}
             <div className="glass-strong rounded-2xl p-6">
-              <p className="mb-3 text-sm text-slate-400">Proprietes calculees</p>
+              <div className="mb-3 flex items-center justify-between">
+                <p className="text-sm text-slate-400">Proprietes calculees</p>
+                {moteur && <BadgeMoteur moteur={moteur} />}
+              </div>
               <dl className="space-y-2 font-mono text-sm">
                 <Propriete label="Poids" valeur={`${prediction.proprietes.poidsMoleculaire} g/mol`} />
                 <Propriete label="LogP" valeur={prediction.proprietes.logP.toString()} />
@@ -215,9 +262,12 @@ export default function DemoPage() {
           transition={{ duration: 0.5, delay: 0.2 }}
           className="mt-8"
         >
-          <h2 className="mb-4 text-xl font-semibold text-white">
-            Molecules connues similaires
-          </h2>
+          <div className="mb-4 flex items-center gap-3">
+            <h2 className="text-xl font-semibold text-white">
+              Molecules connues similaires
+            </h2>
+            {moteur && <BadgeMoteur moteur={moteur} />}
+          </div>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {analogues.map((a, i) => (
               <motion.div
@@ -245,7 +295,7 @@ export default function DemoPage() {
                 <div className="mt-3 flex justify-between text-xs text-slate-400">
                   <span>pIC50 {a.pIC50.toFixed(1)}</span>
                   <span className="font-mono text-cyan-glow">
-                    similarite {a.similarite.toFixed(2)}
+                    Tanimoto {a.similarite.toFixed(2)}
                   </span>
                 </div>
               </motion.div>
@@ -254,6 +304,23 @@ export default function DemoPage() {
         </motion.div>
       )}
     </div>
+  );
+}
+
+function BadgeMoteur({ moteur }: { moteur: "rust" | "js" }) {
+  if (moteur === "rust") {
+    return (
+      <span className="inline-flex items-center gap-1.5 rounded-full border border-cyan-glow/30 bg-cyan-glow/10 px-2.5 py-1 text-xs text-cyan-glow">
+        <Cpu className="h-3.5 w-3.5" />
+        Calcule en Rust / WebAssembly
+      </span>
+    );
+  }
+  return (
+    <span className="inline-flex items-center gap-1.5 rounded-full border border-white/15 bg-white/5 px-2.5 py-1 text-xs text-slate-400">
+      <Cpu className="h-3.5 w-3.5" />
+      Calcul JavaScript (repli)
+    </span>
   );
 }
 

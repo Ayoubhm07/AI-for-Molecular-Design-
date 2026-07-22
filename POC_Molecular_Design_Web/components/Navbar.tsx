@@ -7,6 +7,7 @@ import { Hexagon } from "lucide-react";
 const liens = [
   { href: "/", label: "Accueil" },
   { href: "/demo", label: "Demo" },
+  { href: "/screening", label: "Criblage" },
   { href: "/insights", label: "Analytics" },
   { href: "/chemical-space", label: "Espace chimique" },
 ];

@@ -11,6 +11,40 @@ npm run dev
 
 Puis ouvrir http://localhost:3000
 
+## Moteur Rust / WebAssembly
+
+Les proprietes des molecules et la similarite entre elles sont calculees par un
+vrai moteur cheminformatique ecrit en Rust et compile en WebAssembly, qui tourne
+dans le navigateur. Il remplace les anciennes approximations JavaScript. Le code
+Rust vit dans rust/ et l'artefact compile est public/molcore.wasm, charge en lazy
+cote client par lib/wasm/molcore.ts. Si le WebAssembly ne se charge pas, le site
+retombe automatiquement sur le calcul JavaScript, la demo ne casse jamais.
+
+Choix technique : le crate est compile en WebAssembly brut, sans wasm-bindgen ni
+compilateur C, parce que la machine de developpement n'a pas de linker C
+fonctionnel. Voir rust/README.md pour le detail.
+
+Recompiler le moteur apres une modification du code Rust :
+
+```
+npm run build:wasm
+```
+
+Verifier le moteur (charge le wasm dans Node et teste benzene, ethanol, Tanimoto) :
+
+```
+npm run verify:wasm
+```
+
+La page Analytics contient une carte de benchmark qui compare, en direct dans le
+navigateur, le temps de calcul de la similarite en JavaScript et en Rust. La
+mesure est reelle, rien n'est code en dur, et les chiffres varient selon la
+machine.
+
+Limite assumee : le parseur SMILES et l'empreinte sont des modeles simplifies,
+pas RDKit. C'est un outil de demonstration et d'aide a la decision, pas un
+verdict scientifique.
+
 Pour une version de production :
 
 ```
