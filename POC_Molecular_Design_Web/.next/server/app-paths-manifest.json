@@ -1,9 +1,0 @@
-{
-  "/_not-found/page": "app/_not-found/page.js",
-  "/api/analogues/route": "app/api/analogues/route.js",
-  "/api/predict/route": "app/api/predict/route.js",
-  "/chemical-space/page": "app/chemical-space/page.js",
-  "/demo/page": "app/demo/page.js",
-  "/insights/page": "app/insights/page.js",
-  "/page": "app/page.js"
-}

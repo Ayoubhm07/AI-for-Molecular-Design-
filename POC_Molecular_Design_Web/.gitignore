@@ -13,3 +13,5 @@
 *.log
 .env*.local
 .vercel
+
+.next/
